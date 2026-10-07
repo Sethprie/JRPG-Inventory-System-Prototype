@@ -44,11 +44,11 @@ public partial class ConsoleMenu(GameState g, string savePath)
             Ui.MenuRow("Mochila", (2, "Inventario"), (6, "Tirar ítem"));
             Ui.MenuRow("Asentamiento", (5, "Tienda"), (7, "Restaurar Solidez"));
             Ui.MenuRow("Partida", (8, "Guardar"), (9, "Cargar"));
-            Ui.MenuRow("Pruebas", (10, "Debug"), (11, "Simular combate"));
+            Ui.MenuRow("Pruebas", (10, "Debug"), (11, "Simular combate"), (12, "Idioma"), (13, "Probar daño"));
             Ui.MenuRow("", (0, "Salir"));
             Ui.WriteLine();
 
-            switch (Ui.ReadInt(0, 11))
+            switch (Ui.ReadInt(0, 13))
             {
                 case 1: ShowStatus(); break;
                 case 2: ShowInventory(); break;
@@ -61,6 +61,8 @@ public partial class ConsoleMenu(GameState g, string savePath)
                 case 9: Load(); break;
                 case 10: DebugMenu(); break;
                 case 11: SimulateCombat(); break;
+                case 12: LanguageMenu(); break;
+                case 13: DamageTest(); break;
                 case 0: return;
             }
         }
@@ -100,7 +102,7 @@ public partial class ConsoleMenu(GameState g, string savePath)
             Ui.Write(c == g.Party.Leader ? "  ★ " : "    ", ConsoleColor.Yellow);
             Ui.Write(c.Name.PadRight(13));
             Ui.Write("PV ", ConsoleColor.DarkGray);
-            Ui.HpBar(c.CurrentHp, c.GetStat(Stat.MaxHp));
+            Ui.HpBar(c.CurrentHealth, c.GetStat(Stat.MaxHealth));
             Ui.Write("  Solidez ", ConsoleColor.DarkGray);
             Ui.SolidityPips(c.CurrentSolidity, c.GetStat(Stat.MaxSolidity));
             Ui.WriteLine();
@@ -120,7 +122,7 @@ public partial class ConsoleMenu(GameState g, string savePath)
         var rows = g.Roster.Select(c => (
             c.Name,
             "",
-            $"PV {c.BaseStats[Stat.MaxHp]} · PM {c.BaseStats[Stat.MaxMp]} · Ataque {c.BaseStats[Stat.Attack]} · Defensa {c.BaseStats[Stat.Defense]} · Vel {c.BaseStats[Stat.Speed]}"
+            $"PV {c.GetStat(Stat.MaxHealth)} · Magia {c.GetStat(Stat.MaxMagic)} · Ataque {c.GetStat(Stat.AttackPower)} · Def {c.GetStat(Stat.Defense)} · Vel {c.GetStat(Stat.Speed)}"
         )).ToList();
         Ui.Rows(rows, numbered: true);
         Ui.WriteLine();
@@ -133,63 +135,155 @@ public partial class ConsoleMenu(GameState g, string savePath)
 
     private void ShowStatus()
     {
-        Ui.Header("Estado del grupo", g.Wallet.Essence);
-
-        foreach (var c in g.Party.Members)
+        while (true)
         {
-            Ui.Write($"  {c.Name}", ConsoleColor.White);
-            Ui.Write($"  ({Labels.ClassName(c.Class)})", ConsoleColor.DarkGray);
-            if (c == g.Party.Leader) Ui.Write("  ★ Líder", ConsoleColor.Yellow);
-            Ui.WriteLine();
+            Ui.Header("Estado del grupo", g.Wallet.Essence);
 
-            Ui.Write("    PV         ", ConsoleColor.DarkGray);
-            Ui.HpBar(c.CurrentHp, c.GetStat(Stat.MaxHp), 14);
-            Ui.WriteLine();
-            Ui.Write("    Solidez    ", ConsoleColor.DarkGray);
-            Ui.SolidityPips(c.CurrentSolidity, c.GetStat(Stat.MaxSolidity));
-            Ui.WriteLine();
-
-            var stats = new[] { Stat.MaxMp, Stat.Attack, Stat.Defense, Stat.Speed };
-            Ui.Write("    Atributos  ", ConsoleColor.DarkGray);
-            Ui.WriteLine(string.Join("  ·  ", stats.Select(s => $"{Labels.StatName(s)} {c.GetStat(s)}")));
-
-            foreach (var slot in Enum.GetValues<EquipSlot>())
+            foreach (var c in g.Party.Members)
             {
-                var eq = c.Equipped.GetValueOrDefault(slot);
-                Ui.Write($"    {Labels.SlotName(slot),-11}", ConsoleColor.DarkGray);
-                if (eq == null) Ui.WriteLine("—", ConsoleColor.DarkGray);
-                else
+                Ui.Write($"  {c.Name}", ConsoleColor.White);
+                Ui.Write($"  ({Labels.ClassName(c.Class)})", ConsoleColor.DarkGray);
+                if (c == g.Party.Leader) Ui.Write("  ★ Líder", ConsoleColor.Yellow);
+                Ui.WriteLine();
+
+                Ui.Write($"    Nivel      {c.Level}", ConsoleColor.Gray);
+                Ui.WriteLine(c.ExperienceToNext > 0 ? $"   XP {c.Experience}/{c.ExperienceToNext}" : "   (máximo)", ConsoleColor.DarkGray);
+                Ui.Write("    Vida       ", ConsoleColor.DarkGray);
+                Ui.HpBar(c.CurrentHealth, c.GetStat(Stat.MaxHealth), 14);
+                Ui.WriteLine();
+                Ui.Write("    Magia      ", ConsoleColor.DarkGray);
+                Ui.HpBar(c.CurrentMagic, c.GetStat(Stat.MaxMagic), 14);
+                Ui.WriteLine();
+                Ui.Write("    Solidez    ", ConsoleColor.DarkGray);
+                Ui.SolidityPips(c.CurrentSolidity, c.GetStat(Stat.MaxSolidity));
+                Ui.WriteLine();
+
+                foreach (var slot in Enum.GetValues<EquipSlot>())
                 {
-                    Ui.Write(eq.Name);
-                    Ui.WriteLine($"  ({Labels.Describe(eq)})", ConsoleColor.DarkGray);
+                    var eq = c.Equipped.GetValueOrDefault(slot);
+                    Ui.Write($"    {Labels.SlotName(slot),-11}", ConsoleColor.DarkGray);
+                    if (eq == null) Ui.WriteLine("—", ConsoleColor.DarkGray);
+                    else Ui.WriteLine(eq.DisplayName);
                 }
+
+                Ui.Write("    Estados    ", ConsoleColor.DarkGray);
+                if (c.Statuses.Count == 0) Ui.WriteLine("ninguno", ConsoleColor.DarkGray);
+                else Ui.WriteLine(string.Join(", ", c.Statuses.Select(st => $"{Labels.StatusName(st.Key)} ({st.Value}t)")), ConsoleColor.Yellow);
+                Ui.WriteLine();
             }
 
-            Ui.Write("    Estados    ", ConsoleColor.DarkGray);
-            if (c.Statuses.Count == 0) Ui.WriteLine("ninguno", ConsoleColor.DarkGray);
-            else Ui.WriteLine(string.Join(", ", c.Statuses.Select(s => $"{Labels.StatusName(s.Key)} ({s.Value}t)")), ConsoleColor.Yellow);
-            Ui.WriteLine();
-        }
+            if (g.Party.Erased.Count > 0)
+                Ui.Dim($"Borrados para siempre: {string.Join(", ", g.Party.Erased)}");
 
-        if (g.Party.Erased.Count > 0)
-            Ui.Dim($"Borrados para siempre: {string.Join(", ", g.Party.Erased)}");
+            var members = g.Party.Members;
+            Ui.Section("Ficha detallada");
+            Ui.Rows(members.Select(m => (m.Name, Labels.ClassName(m.Class), $"Nivel {m.Level}")).ToList(), numbered: true);
+            Ui.Back();
+            Ui.WriteLine();
+
+            int choice = Ui.ReadInt(0, members.Count);
+            if (choice == 0) return;
+            CharacterSheet(members[choice - 1]);
+        }
+    }
+
+    // Ficha con el desglose de cada stat: de dónde sale cada número
+    private void CharacterSheet(Character c)
+    {
+        Ui.Header($"Ficha de {c.Name}", g.Wallet.Essence);
+        Ui.Dim($"{Labels.ClassName(c.Class)} · Nivel {c.Level}");
+        Ui.WriteLine();
+
+        Ui.Section("Atributos (suben solos con el nivel)");
+        foreach (var stat in Enum.GetValues<Stat>().Where(StatFormulas.IsPrimary)) SheetLine(c, stat);
+        Ui.WriteLine();
+
+        Ui.Section("Derivados");
+        foreach (var stat in Enum.GetValues<Stat>().Where(st => !StatFormulas.IsPrimary(st))) SheetLine(c, stat);
         Ui.Pause();
+    }
+
+    private static void SheetLine(Character c, Stat stat)
+    {
+        var b = c.GetBreakdown(stat);
+        Ui.Write($"  {Labels.StatName(stat),-17}", ConsoleColor.White);
+        Ui.Write($"{b.Final,4}", ConsoleColor.Yellow);
+        Ui.WriteLine($"  = {b.Describe()}", ConsoleColor.DarkGray);
     }
 
     private void ShowInventory()
     {
-        Ui.Header("Inventario", g.Wallet.Essence);
-
-        var entries = GetInventoryEntries(_ => true);
-        if (entries.Count == 0) Ui.Dim("La mochila está vacía.");
-
-        foreach (var group in entries.GroupBy(e => e.Def.Category))
+        while (true)
         {
-            Ui.Section(Labels.CategoryName(group.Key));
-            Ui.Rows(group.Select(e => (e.Def.Name, $"x{e.Qty}", ItemNote(e.Def))).ToList(), numbered: false);
+            Ui.Header("Inventario", g.Wallet.Essence);
+
+            var entries = GetInventoryEntries(_ => true);
+            if (entries.Count == 0) { Ui.Dim("La mochila está vacía."); Ui.Pause(); return; }
+
+            int index = 1;
+            foreach (var group in entries.GroupBy(e => e.Def.Category))
+            {
+                Ui.Section(Labels.CategoryName(group.Key));
+                Ui.Rows(group.Select(e => (e.Def.DisplayName, $"x{e.Qty}", ItemNote(e.Def))).ToList(), numbered: true, startIndex: index);
+                index += group.Count();
+                Ui.WriteLine();
+            }
+
+            Ui.Dim("Elige un número para ver el detalle del ítem.");
+            Ui.Back();
+            Ui.WriteLine();
+
+            int choice = Ui.ReadInt(0, entries.Count);
+            if (choice == 0) return;
+            ItemDetail(entries[choice - 1].Def);
+        }
+    }
+
+    // Pantalla de detalle al estilo Dark Souls: efecto (generado) y luego la historia (escrita a mano)
+    private void ItemDetail(ItemDefinition item)
+    {
+        Ui.Header(item.DisplayName, g.Wallet.Essence);
+        Ui.Dim($"{Labels.CategoryName(item.Category)}  ·  {Loc.T("ui.base_price", item.BasePrice)}");
+        if (ItemTags(item) != "") Ui.Dim(ItemTags(item).Trim());
+        if (item is EquipmentItem { RestrictionText: not "" } restricted) Ui.Dim(restricted.RestrictionText);
+        Ui.WriteLine();
+
+        if (item.EffectText != "")
+        {
+            Ui.Section(Loc.T("ui.effect"));
+            Ui.Wrap(item.EffectText);
             Ui.WriteLine();
         }
+
+        Ui.Section(Loc.T("ui.story"));
+        Ui.Wrap(item.Lore, color: ConsoleColor.Gray);
         Ui.Pause();
+    }
+
+    private void LanguageMenu()
+    {
+        Ui.Header("Idioma / Language", g.Wallet.Essence);
+
+        var languages = Loc.Languages.ToList();
+        Ui.Rows(languages.Select(l => (
+            Loc.NameOf(l),
+            l == Loc.Current ? "● actual" : "",
+            l == Loc.BaseLanguage ? "idioma base" : $"{Loc.MissingKeys(l).Count()} claves sin traducir")).ToList(), numbered: true);
+
+        var missingItemText = g.Database.GetAll()
+            .Where(i => !Loc.Has($"item.{i.Id}.name") || !Loc.Has($"item.{i.Id}.lore")).ToList();
+        Ui.WriteLine();
+        if (missingItemText.Count == 0) Ui.Dim("Todos los ítems tienen nombre e historia en el idioma base.");
+        else Ui.Warn($"Ítems sin texto en el idioma base: {string.Join(", ", missingItemText.Select(i => i.Id))}");
+
+        Ui.Back();
+        Ui.WriteLine();
+
+        int choice = Ui.ReadInt(0, languages.Count);
+        if (choice == 0) return;
+
+        Loc.SetLanguage(languages[choice - 1]);
+        Ok($"Idioma: {Loc.NameOf(Loc.Current)}.");
     }
 
     // ---------- Acciones ----------
@@ -210,7 +304,7 @@ public partial class ConsoleMenu(GameState g, string savePath)
     private ConsumableItem? PickUsableItem(UseContext context) =>
         PickFromInventory(
             i => i is ConsumableItem c && c.Category == ItemCategory.Consumable && c.UsableIn.HasFlag(context),
-            i => $"{Labels.TargetName(((ConsumableItem)i).Target)} · {i.Description}") as ConsumableItem;
+            i => $"{Labels.TargetName(((ConsumableItem)i).Target)} · {i.EffectText}") as ConsumableItem;
 
     // Devuelve los objetivos según el tipo del ítem, o null si se cancela / no está soportado
     private List<Character>? PickTargets(ConsumableItem item)
@@ -239,7 +333,7 @@ public partial class ConsoleMenu(GameState g, string savePath)
         {
             if (r.Applied) Ok(r.Message); else Warn(r.Message);
         }
-        Ui.Dim($"Te quedan {g.Inventory.GetCount(item.Id)} de {item.Name}.");
+        Ui.Dim($"Te quedan {g.Inventory.GetCount(item.Id)} de {item.DisplayName}.");
     }
 
     private static string UseMessage(UseCheck check) => check switch
@@ -260,7 +354,7 @@ public partial class ConsoleMenu(GameState g, string savePath)
         int max = Math.Max(1, g.Inventory.GetCount(item.Id));
         int qty = Ui.ReadInt(1, max, "Cantidad a tirar");
         var result = g.Inventory.TryDiscard(item, qty);
-        if (result == TradeResult.Success) Ok($"Tiraste {item.Name} x{qty}.");
+        if (result == TradeResult.Success) Ok($"Tiraste {item.DisplayName} x{qty}.");
         else Fail(TradeMessage(result));
     }
 
@@ -294,7 +388,7 @@ public partial class ConsoleMenu(GameState g, string savePath)
             var eq = member.Equipped.GetValueOrDefault(slot);
             Ui.Write($"  {Labels.SlotName(slot),-11}", ConsoleColor.DarkGray);
             if (eq == null) Ui.WriteLine("—", ConsoleColor.DarkGray);
-            else { Ui.Write(eq.Name); Ui.WriteLine($"  ({Labels.Describe(eq)})", ConsoleColor.DarkGray); }
+            else { Ui.Write(eq.DisplayName); Ui.WriteLine($"  ({Labels.Describe(eq)})", ConsoleColor.DarkGray); }
         }
         Ui.WriteLine();
 
@@ -313,14 +407,21 @@ public partial class ConsoleMenu(GameState g, string savePath)
     private void EquipFromInventory(Character member)
     {
         Ui.Header($"Equipar a {member.Name}", g.Wallet.Essence);
-        var picked = PickFromInventory(i => i is EquipmentItem, i => Labels.Describe((EquipmentItem)i));
+        var picked = PickFromInventory(i => i is EquipmentItem,
+            i => ((EquipmentItem)i).EffectText + (((EquipmentItem)i).RestrictionText is { Length: > 0 } r ? $"  [{r}]" : ""));
         if (picked is not EquipmentItem item) return;
+
+        if (!item.CanBeUsedBy(member))
+        {
+            Fail($"{member.Name} no puede equipar {item.DisplayName}. {item.RestrictionText}");
+            return;
+        }
 
         // Comprobamos antes que el ítem que se va a reemplazar tenga hueco en la mochila
         var current = member.Equipped.GetValueOrDefault(item.Slot);
         if (current != null && current.Id != item.Id && g.Inventory.GetCount(current.Id) >= current.MaxStack)
         {
-            Fail($"No hay espacio en la mochila para {current.Name}.");
+            Fail($"No hay espacio en la mochila para {current.DisplayName}.");
             return;
         }
 
@@ -328,8 +429,8 @@ public partial class ConsoleMenu(GameState g, string savePath)
         var previous = member.Equip(item);
         if (previous != null) g.Inventory.Add(previous, 1);
 
-        Ok($"{member.Name} equipa {item.Name}.");
-        if (previous != null) Ui.Dim($"{previous.Name} vuelve a la mochila.");
+        Ok($"{member.Name} equipa {item.DisplayName}.");
+        if (previous != null) Ui.Dim($"{previous.DisplayName} vuelve a la mochila.");
     }
 
     private void UnequipSlot(Character member)
@@ -338,7 +439,7 @@ public partial class ConsoleMenu(GameState g, string savePath)
         if (slots.Count == 0) { Warn($"{member.Name} no lleva nada equipado."); return; }
 
         Ui.Header($"Desequipar a {member.Name}", g.Wallet.Essence);
-        Ui.Rows(slots.Select(s => (Labels.SlotName(s), member.Equipped[s].Name, "")).ToList(), numbered: true);
+        Ui.Rows(slots.Select(s => (Labels.SlotName(s), member.Equipped[s].DisplayName, "")).ToList(), numbered: true);
         Ui.Back("Cancelar");
         Ui.WriteLine();
 
@@ -348,13 +449,13 @@ public partial class ConsoleMenu(GameState g, string savePath)
         var equipped = member.Equipped[slots[choice - 1]];
         if (g.Inventory.GetCount(equipped.Id) >= equipped.MaxStack)
         {
-            Fail($"No hay espacio en la mochila para {equipped.Name}.");
+            Fail($"No hay espacio en la mochila para {equipped.DisplayName}.");
             return;
         }
 
         var item = member.Unequip(slots[choice - 1])!;
         g.Inventory.Add(item, 1);
-        Ok($"{item.Name} vuelve a la mochila.");
+        Ok($"{item.DisplayName} vuelve a la mochila.");
     }
 
     // ---------- Tienda ----------
@@ -397,7 +498,7 @@ public partial class ConsoleMenu(GameState g, string savePath)
         var stock = shop.Stock.Select(g.Database.Get).ToList();
         if (stock.Count == 0) { Warn("No tiene nada a la venta."); return; }
 
-        Ui.Rows(stock.Select(i => (i.Name, $"{shop.GetBuyPrice(i)} Esencia", $"tienes {g.Inventory.GetCount(i.Id)}")).ToList(), numbered: true);
+        Ui.Rows(stock.Select(i => (i.DisplayName, $"{shop.GetBuyPrice(i)} Esencia", $"tienes {g.Inventory.GetCount(i.Id)}")).ToList(), numbered: true);
         Ui.Back("Cancelar");
         Ui.WriteLine();
 
@@ -408,7 +509,7 @@ public partial class ConsoleMenu(GameState g, string savePath)
         int qty = Ui.ReadInt(1, item.MaxStack, "Cantidad");
         int total = shop.GetBuyPrice(item) * qty;
         var result = shop.TryBuy(g.Inventory, g.Wallet, item, qty);
-        if (result == TradeResult.Success) Ok($"Compraste {item.Name} x{qty} por {total} Esencia.");
+        if (result == TradeResult.Success) Ok($"Compraste {item.DisplayName} x{qty} por {total} Esencia.");
         else Fail(TradeMessage(result));
     }
 
@@ -423,7 +524,7 @@ public partial class ConsoleMenu(GameState g, string savePath)
         int qty = Ui.ReadInt(1, Math.Max(1, g.Inventory.GetCount(item.Id)), "Cantidad a vender");
         int total = shop.GetSellPrice(item) * qty;
         var result = shop.TrySell(g.Inventory, g.Wallet, item, qty);
-        if (result == TradeResult.Success) Ok($"Vendiste {item.Name} x{qty} por {total} Esencia.");
+        if (result == TradeResult.Success) Ok($"Vendiste {item.DisplayName} x{qty} por {total} Esencia.");
         else Fail(TradeMessage(result));
     }
 
@@ -463,27 +564,29 @@ public partial class ConsoleMenu(GameState g, string savePath)
         Ui.Line(6, "Derrotar a un personaje (pierde Solidez)");
         Ui.Line(7, "Reclutar personaje");
         Ui.Line(8, "Activar/desactivar flag del mundo");
+        Ui.Line(9, "Dar experiencia");
         Ui.Back();
         Ui.WriteLine();
 
-        switch (Ui.ReadInt(0, 8))
+        switch (Ui.ReadInt(0, 9))
         {
             case 1: { var c = PickMember("¿A quién?"); if (c != null) { c.TakeDamage(30); Ok($"{c.Name} recibe 30 de daño."); } break; }
             case 2: { var c = PickMember("¿A quién?"); if (c != null) { c.AddStatus(StatusType.Poison, 3); Ok($"{c.Name} está envenenado."); } break; }
-            case 3: { var c = PickMember("¿A quién?"); if (c != null) { c.SetHp(c.GetStat(Stat.MaxHp)); Ok($"{c.Name} recupera todos sus PV."); } break; }
+            case 3: { var c = PickMember("¿A quién?"); if (c != null) { c.SetHealth(c.GetStat(Stat.MaxHealth)); Ok($"{c.Name} recupera todos sus PV."); } break; }
             case 4: g.Wallet.Add(500); Ok("+500 de Esencia."); break;
             case 5: DebugAddItem(); break;
             case 6: DebugDefeat(); break;
             case 7: DebugRecruit(); break;
             case 8: DebugToggleFlag(); break;
+            case 9: DebugExperience(); break;
         }
     }
 
     private void DebugAddItem()
     {
         Ui.Header("Debug · Añadir ítem", g.Wallet.Essence);
-        var all = g.Database.GetAll().OrderBy(i => i.Name).ToList();
-        Ui.Rows(all.Select(i => (i.Name, Labels.CategoryName(i.Category), $"tope {i.MaxStack}")).ToList(), numbered: true);
+        var all = g.Database.GetAll().OrderBy(i => i.DisplayName).ToList();
+        Ui.Rows(all.Select(i => (i.DisplayName, Labels.CategoryName(i.Category), $"tope {i.MaxStack}")).ToList(), numbered: true);
         Ui.Back("Cancelar");
         Ui.WriteLine();
 
@@ -493,7 +596,7 @@ public partial class ConsoleMenu(GameState g, string savePath)
         var item = all[choice - 1];
         int qty = Ui.ReadInt(1, 200, "Cantidad");
         int added = g.Inventory.Add(item, qty);
-        if (added == qty) Ok($"Añadidos {item.Name} x{added}.");
+        if (added == qty) Ok($"Añadidos {item.DisplayName} x{added}.");
         else Warn($"Solo se añadieron {added} de {qty} (tope {item.MaxStack}).");
     }
 
@@ -535,6 +638,16 @@ public partial class ConsoleMenu(GameState g, string savePath)
         else Warn("El grupo está completo.");
     }
 
+    private void DebugExperience()
+    {
+        var c = PickMember("¿A quién?");
+        if (c == null) return;
+        int amount = Ui.ReadInt(1, 100000, "Experiencia");
+        int before = c.Level;
+        int levels = c.AddExperience(amount);
+        Ok($"{c.Name} gana {amount} XP." + (levels > 0 ? $" ¡Sube de nivel {before} → {c.Level}!" : ""));
+    }
+
     private void DebugToggleFlag()
     {
         var flags = g.Shops.Where(s => s.UnlockFlag != null).Select(s => s.UnlockFlag!).Distinct().ToList();
@@ -559,7 +672,7 @@ public partial class ConsoleMenu(GameState g, string savePath)
         g.Inventory.GetAll()
            .Select(p => (Def: g.Database.Get(p.Key), Qty: p.Value))
            .Where(e => filter(e.Def))
-           .OrderBy(e => e.Def.Category).ThenBy(e => e.Def.Name)
+           .OrderBy(e => e.Def.Category).ThenBy(e => e.Def.DisplayName)
            .ToList();
 
     // Lista numerada del inventario; devuelve la definición elegida o null si cancela
@@ -568,7 +681,7 @@ public partial class ConsoleMenu(GameState g, string savePath)
         var entries = GetInventoryEntries(filter);
         if (entries.Count == 0) { Warn("No hay ítems disponibles."); return null; }
 
-        Ui.Rows(entries.Select(e => (e.Def.Name, $"x{e.Qty}", note?.Invoke(e.Def) ?? e.Def.Description)).ToList(), numbered: true);
+        Ui.Rows(entries.Select(e => (e.Def.DisplayName, $"x{e.Qty}", note?.Invoke(e.Def) ?? e.Def.EffectText)).ToList(), numbered: true);
         Ui.Back("Cancelar");
         Ui.WriteLine();
 
@@ -587,7 +700,7 @@ public partial class ConsoleMenu(GameState g, string savePath)
         Ui.Section(prompt);
         Ui.Rows(members.Select(m => (
             m.Name,
-            $"PV {m.CurrentHp}/{m.GetStat(Stat.MaxHp)}",
+            $"PV {m.CurrentHealth}/{m.GetStat(Stat.MaxHealth)}",
             $"Solidez {m.CurrentSolidity}/{m.GetStat(Stat.MaxSolidity)}")).ToList(), numbered: true);
         Ui.Back("Cancelar");
         Ui.WriteLine();
@@ -596,14 +709,15 @@ public partial class ConsoleMenu(GameState g, string savePath)
         return choice == 0 ? null : members[choice - 1];
     }
 
-    private static string ItemNote(ItemDefinition item)
+    private static string ItemTags(ItemDefinition item)
     {
         var tags = new List<string>();
         if (!item.IsSellable) tags.Add("no vendible");
         if (!item.IsDiscardable) tags.Add("no se puede tirar");
-        string tagText = tags.Count == 0 ? "" : $"  [{string.Join(", ", tags)}]";
-        return item.Description + tagText;
+        return tags.Count == 0 ? "" : $"  [{string.Join(", ", tags)}]";
     }
+
+    private static string ItemNote(ItemDefinition item) => item.EffectText + ItemTags(item);
 
     private static string TradeMessage(TradeResult result) => result switch
     {

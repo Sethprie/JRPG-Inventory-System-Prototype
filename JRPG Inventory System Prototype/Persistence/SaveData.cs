@@ -12,7 +12,10 @@ public class SaveData
 public class MemberSave
 {
     public string Name { get; set; } = "";
+    public int Level { get; set; } = 1;
+    public int Experience { get; set; }
     public int Hp { get; set; }
+    public int Magic { get; set; }
     public int Solidity { get; set; }
     public Dictionary<EquipSlot, string> Equipped { get; set; } = new();
     public Dictionary<StatusType, int> Statuses { get; set; } = new();

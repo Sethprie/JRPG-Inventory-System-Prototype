@@ -17,7 +17,10 @@ public static class SaveSystem
             Party = s.Party.Members.Select(c => new MemberSave
             {
                 Name = c.Name,
-                Hp = c.CurrentHp,
+                Level = c.Level,
+                Experience = c.Experience,
+                Hp = c.CurrentHealth,
+                Magic = c.CurrentMagic,
                 Solidity = c.CurrentSolidity,
                 Equipped = c.Equipped.ToDictionary(p => p.Key, p => p.Value.Id),
                 Statuses = new(c.Statuses)
@@ -45,9 +48,11 @@ public static class SaveSystem
         foreach (var m in data.Party)
         {
             var c = s.Roster.First(r => r.Name == m.Name);
+            c.SetProgress(m.Level, m.Experience);
             foreach (var id in m.Equipped.Values) c.Equip((EquipmentItem)s.Database.Get(id));
             foreach (var (status, turns) in m.Statuses) c.AddStatus(status, turns);
-            c.SetHp(m.Hp);               // al final, cuando el equipo ya define los máximos
+            c.SetHealth(m.Hp);
+            c.SetMagic(m.Magic);               // al final, cuando el equipo ya define los máximos
             c.SetSolidity(m.Solidity);
             s.Party.TryAdd(c);
         }

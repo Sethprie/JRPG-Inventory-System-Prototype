@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace JRPG_Inventory_System_Prototype;
 
 // Helpers de presentación para la consola (no contienen lógica de juego)
@@ -86,18 +88,36 @@ public static class Ui
     public static void Back(string text = "Volver") => Line(0, text);
 
     // Filas con columnas alineadas. Si numbered, cada fila lleva [n].
-    public static void Rows(IReadOnlyList<(string Name, string Col2, string Note)> rows, bool numbered)
+    public static void Rows(IReadOnlyList<(string Name, string Col2, string Note)> rows, bool numbered, int startIndex = 1)
     {
         int nameWidth = rows.Count == 0 ? 0 : rows.Max(r => r.Name.Length) + 2;
         int col2Width = rows.Count == 0 ? 0 : rows.Max(r => r.Col2.Length) + 2;
         for (int i = 0; i < rows.Count; i++)
         {
             Write("  ");
-            if (numbered) Write($"[{i + 1}] ".PadRight(5), ConsoleColor.Yellow);
+            if (numbered) Write($"[{startIndex + i}] ".PadRight(5), ConsoleColor.Yellow);
             Write(rows[i].Name.PadRight(nameWidth));
             Write(rows[i].Col2.PadRight(col2Width), ConsoleColor.Gray);
             WriteLine(rows[i].Note, ConsoleColor.DarkGray);
         }
+    }
+
+    // Imprime un párrafo ajustado al ancho de la pantalla
+    public static void Wrap(string text, int indent = 2, ConsoleColor? color = null)
+    {
+        int width = Width - indent;
+        var line = new StringBuilder();
+        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (line.Length > 0 && line.Length + word.Length + 1 > width)
+            {
+                WriteLine(new string(' ', indent) + line, color);
+                line.Clear();
+            }
+            if (line.Length > 0) line.Append(' ');
+            line.Append(word);
+        }
+        if (line.Length > 0) WriteLine(new string(' ', indent) + line, color);
     }
 
     public static int ReadInt(int min, int max, string? label = null)

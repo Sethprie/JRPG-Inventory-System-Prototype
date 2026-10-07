@@ -2,42 +2,86 @@ namespace JRPG_Inventory_System_Prototype;
 
 public class Character
 {
-    public const int DefaultSolidity = 3;
-
     public string Name { get; }
     public CharacterClass Class { get; }
-    public Dictionary<Stat, int> BaseStats { get; }
+    public int Level { get; private set; } = 1;
+    public int Experience { get; private set; }
     public Dictionary<EquipSlot, EquipmentItem> Equipped { get; } = new();
     public Dictionary<StatusType, int> Statuses { get; } = new(); // estado -> turnos
-    public int CurrentHp { get; private set; }
+
+    // Estado (cambia en juego; no son stats)
+    public int CurrentHealth { get; private set; }
+    public int CurrentMagic { get; private set; }
     public int CurrentSolidity { get; private set; }
 
-    public Character(string name, CharacterClass characterClass,
-                     int maxHp, int maxMp, int attack, int defense, int speed,
-                     int maxSolidity = DefaultSolidity)
+    public Character(string name, CharacterClass characterClass)
     {
         Name = name;
         Class = characterClass;
-        BaseStats = new()
-        {
-            [Stat.MaxHp] = maxHp,
-            [Stat.MaxMp] = maxMp,
-            [Stat.Attack] = attack,
-            [Stat.Defense] = defense,
-            [Stat.Speed] = speed,
-            [Stat.MaxSolidity] = maxSolidity
-        };
-        CurrentHp = maxHp;
-        CurrentSolidity = maxSolidity;
+        FillVitals();
     }
 
-    public int GetStat(Stat stat)
+    // ---------- Stats ----------
+
+    public int GetStat(Stat stat) => GetBreakdown(stat).Final;
+
+    public StatBreakdown GetBreakdown(Stat stat)
     {
         var mods = Equipped.Values.SelectMany(e => e.Modifiers).Where(m => m.Stat == stat).ToList();
-        float flat = BaseStats[stat] + mods.Where(m => m.Type == ModifierType.Flat).Sum(m => m.Value);
-        float pct = mods.Where(m => m.Type == ModifierType.Percent).Sum(m => m.Value);
-        return (int)(flat * (1 + pct));
+        float equipFlat = mods.Where(m => m.Type == ModifierType.Flat).Sum(m => m.Value);
+        float percent = mods.Where(m => m.Type == ModifierType.Percent).Sum(m => m.Value);
+
+        var parts = new List<(string, float)>();
+        if (StatFormulas.IsPrimary(stat))
+        {
+            var def = Classes.Get(Class);
+            parts.Add((Loc.T("breakdown.base"), def.BasePrimaries[stat]));
+            parts.Add((Loc.T("breakdown.level"), def.GrowthPerLevel[stat] * (Level - 1)));
+        }
+        else
+        {
+            parts.Add((Loc.T("breakdown.base"), StatFormulas.BaseDerived.GetValueOrDefault(stat)));
+            if (StatFormulas.Sources.TryGetValue(stat, out var sources))
+                foreach (var (primary, coef) in sources)
+                {
+                    int value = GetStat(primary);
+                    parts.Add(($"{Labels.StatName(primary)} ({value}×{coef})", value * coef));
+                }
+        }
+        parts.Add((Loc.T("breakdown.equipment"), equipFlat));
+
+        int final = (int)Math.Max(0, parts.Sum(p => p.Item2) * (1 + percent));
+        if (StatFormulas.Caps.TryGetValue(stat, out int cap)) final = Math.Min(final, cap);
+        return new StatBreakdown(stat, parts, percent, final);
     }
+
+    // ---------- Experiencia ----------
+
+    public int ExperienceToNext => Level >= Progression.MaxLevel ? 0 : Progression.ExperienceForNext(Level);
+
+    // Devuelve cuántos niveles subió. Los atributos suben solos según la clase.
+    public int AddExperience(int amount)
+    {
+        if (Level >= Progression.MaxLevel) return 0;
+        Experience += amount;
+        int gained = 0;
+        while (Level < Progression.MaxLevel && Experience >= Progression.ExperienceForNext(Level))
+        {
+            Experience -= Progression.ExperienceForNext(Level);
+            Level++;
+            gained++;
+        }
+        if (Level >= Progression.MaxLevel) Experience = 0;
+        return gained;
+    }
+
+    public void SetProgress(int level, int experience)
+    {
+        Level = Math.Clamp(level, 1, Progression.MaxLevel);
+        Experience = Math.Max(0, experience);
+    }
+
+    // ---------- Equipo ----------
 
     // Devuelve el item que estaba equipado antes en ese slot (o null)
     public EquipmentItem? Equip(EquipmentItem item)
@@ -59,13 +103,24 @@ public class Character
 
     public int Heal(int amount)
     {
-        int before = CurrentHp;
-        CurrentHp = Math.Min(CurrentHp + amount, GetStat(Stat.MaxHp));
-        return CurrentHp - before;
+        int before = CurrentHealth;
+        CurrentHealth = Math.Min(CurrentHealth + amount, GetStat(Stat.MaxHealth));
+        return CurrentHealth - before;
     }
 
-    public void SetHp(int hp) => CurrentHp = Math.Clamp(hp, 0, GetStat(Stat.MaxHp));
-    public void TakeDamage(int amount) => CurrentHp = Math.Max(0, CurrentHp - amount);
+    public void SetHealth(int value) => CurrentHealth = Math.Clamp(value, 0, GetStat(Stat.MaxHealth));
+    public void TakeDamage(int amount) => CurrentHealth = Math.Max(0, CurrentHealth - amount);
+
+    // ---------- Magia ----------
+
+    public int RestoreMagic(int amount)
+    {
+        int before = CurrentMagic;
+        CurrentMagic = Math.Min(CurrentMagic + amount, GetStat(Stat.MaxMagic));
+        return CurrentMagic - before;
+    }
+
+    public void SetMagic(int value) => CurrentMagic = Math.Clamp(value, 0, GetStat(Stat.MaxMagic));
 
     // ---------- Solidez ----------
 
@@ -92,13 +147,22 @@ public class Character
     {
         Equipped.Clear();
         Statuses.Clear();
-        CurrentHp = GetStat(Stat.MaxHp);
+        Level = 1;
+        Experience = 0;
+        FillVitals();
+    }
+
+    private void FillVitals()
+    {
+        CurrentHealth = GetStat(Stat.MaxHealth);
+        CurrentMagic = GetStat(Stat.MaxMagic);
         CurrentSolidity = GetStat(Stat.MaxSolidity);
     }
 
     private void ClampVitals()
     {
-        CurrentHp = Math.Min(CurrentHp, GetStat(Stat.MaxHp));
+        CurrentHealth = Math.Min(CurrentHealth, GetStat(Stat.MaxHealth));
+        CurrentMagic = Math.Min(CurrentMagic, GetStat(Stat.MaxMagic));
         CurrentSolidity = Math.Min(CurrentSolidity, GetStat(Stat.MaxSolidity));
     }
 }

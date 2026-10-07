@@ -30,7 +30,7 @@ public class Party
 
         if (c.CurrentSolidity > 0)
         {
-            c.SetHp(c.GetStat(Stat.MaxHp));
+            c.SetHealth(c.GetStat(Stat.MaxHealth));
             return DefeatOutcome.SolidityLost;
         }
 

@@ -10,4 +10,5 @@ public class GameState
     public Inventory Inventory { get; } = new();
     public Party Party { get; } = new();
     public WorldFlags Flags { get; } = new();
+    public List<EnemyDefinition> Enemies { get; } = new();
 }

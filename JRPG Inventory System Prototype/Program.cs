@@ -1,78 +1,154 @@
 using JRPG_Inventory_System_Prototype;
 
-// ---------- Ítems ----------
+// ---------- Textos (idioma base: inglés) ----------
+Loc.LoadFromDirectory(Path.Combine(AppContext.BaseDirectory, "Localization"));
+Loc.SetLanguage("es");
+
+// ---------- Consumibles ----------
 var potion = new ConsumableItem
 {
-    Id = "potion", Name = "Poción", Description = "Recupera 50 PV.",
-    Category = ItemCategory.Consumable, BasePrice = 50,
+    Id = "potion", Category = ItemCategory.Consumable, BasePrice = 50,
     Effects = { new HealHpEffect(50) }
 };
 
 var antidote = new ConsumableItem
 {
-    Id = "antidote", Name = "Antídoto", Description = "Cura el veneno.",
-    Category = ItemCategory.Consumable, BasePrice = 30,
+    Id = "antidote", Category = ItemCategory.Consumable, BasePrice = 30,
     Effects = { new RemoveStatusEffect(StatusType.Poison) }
+};
+
+var ether = new ConsumableItem
+{
+    Id = "ether", Category = ItemCategory.Consumable, BasePrice = 80,
+    Effects = { new RestoreMagicEffect(30) }
 };
 
 var shard = new ConsumableItem
 {
-    Id = "cohesion_shard", Name = "Fragmento de Cohesión", Description = "Recupera 1 de Solidez. (Ítem de prueba)",
-    Category = ItemCategory.Consumable, BasePrice = 150,
+    Id = "cohesion_shard", Category = ItemCategory.Consumable, BasePrice = 150,
     UsableIn = UseContext.Map,
     Effects = { new RestoreSolidityEffect(1) }
 };
 
 var tonic = new ConsumableItem
 {
-    Id = "group_tonic", Name = "Tónico de Grupo", Description = "Recupera 30 PV a todo el grupo.",
-    Category = ItemCategory.Consumable, BasePrice = 120,
+    Id = "group_tonic", Category = ItemCategory.Consumable, BasePrice = 120,
     Target = TargetType.AllAllies,
     Effects = { new HealHpEffect(30) }
 };
 
+var key = new ConsumableItem
+{
+    Id = "key_rusty", Category = ItemCategory.KeyItem, MaxStack = 1
+};
+
+// ---------- Equipo ----------
 var ringFlat = new EquipmentItem
 {
-    Id = "ring_vitality", Name = "Anillo de Vitalidad", Description = "+30 PV máximos.",
-    Category = ItemCategory.Equipment, MaxStack = 1, BasePrice = 300,
+    Id = "ring_vitality", Category = ItemCategory.Equipment, MaxStack = 1, BasePrice = 300,
     Slot = EquipSlot.Accessory,
-    Modifiers = { new StatModifier(Stat.MaxHp, 30) }
+    Modifiers = { new StatModifier(Stat.MaxHealth, 30) }
 };
 
 var ringPercent = new EquipmentItem
 {
-    Id = "ring_vigor", Name = "Anillo de Vigor", Description = "+50% PV máximos.",
-    Category = ItemCategory.Equipment, MaxStack = 1, BasePrice = 800,
+    Id = "ring_vigor", Category = ItemCategory.Equipment, MaxStack = 1, BasePrice = 800,
     Slot = EquipSlot.Accessory,
-    Modifiers = { new StatModifier(Stat.MaxHp, 0.5f, ModifierType.Percent) }
+    Modifiers = { new StatModifier(Stat.MaxHealth, 0.5f, ModifierType.Percent) }
 };
 
 var amulet = new EquipmentItem
 {
-    Id = "amulet_cohesion", Name = "Amuleto de Cohesión", Description = "+1 Solidez máxima.",
-    Category = ItemCategory.Equipment, MaxStack = 1, BasePrice = 600,
+    Id = "amulet_cohesion", Category = ItemCategory.Equipment, MaxStack = 1, BasePrice = 600,
     Slot = EquipSlot.Accessory,
     Modifiers = { new StatModifier(Stat.MaxSolidity, 1) }
 };
 
-var key = new ConsumableItem
+var emberRing = new EquipmentItem
 {
-    Id = "key_rusty", Name = "Llave oxidada", Description = "Abre la bodega.",
-    Category = ItemCategory.KeyItem, MaxStack = 1
+    Id = "ember_ring", Category = ItemCategory.Equipment, MaxStack = 1, BasePrice = 700,
+    Slot = EquipSlot.Accessory,
+    Passives = { new ImbuePhysicalElementPassive(Element.Fire), new StatusOnHitPassive(StatusType.Burning, 30, 3) }
+};
+
+// Ejemplo de ítem que modifica varios stats a la vez (primarios, derivados, fijo y porcentual)
+var pendant = new EquipmentItem
+{
+    Id = "wayfarer_pendant", Category = ItemCategory.Equipment, MaxStack = 1, BasePrice = 500,
+    Slot = EquipSlot.Accessory,
+    Modifiers =
+    {
+        new StatModifier(Stat.Strength, 3),
+        new StatModifier(Stat.Luck, 2),
+        new StatModifier(Stat.MaxHealth, 20),
+        new StatModifier(Stat.Defense, 0.1f, ModifierType.Percent)
+    }
+};
+
+// +20 a todos los stats (menos Solidez máx, que no es un stat de combate), fuego + luz y veneno al golpear
+var excalibur = new EquipmentItem
+{
+    Id = "excalibur", Category = ItemCategory.Equipment, MaxStack = 1, BasePrice = 5000,
+    Slot = EquipSlot.Weapon,
+    AllowedClasses = { CharacterClass.Warrior },
+    Modifiers = Enum.GetValues<Stat>().Where(s => s != Stat.MaxSolidity).Select(s => new StatModifier(s, 20)).ToList(),
+    DamageComponents =
+    {
+        new DamageComponent(DamageCategory.Physical, 15),
+        new DamageComponent(DamageCategory.Magical, 10, Element.Fire),
+        new DamageComponent(DamageCategory.Magical, 10, Element.Holy)
+    },
+    Passives = { new StatusOnHitPassive(StatusType.Poison, 100, 3) }
+};
+
+var ironSword = new EquipmentItem
+{
+    Id = "iron_sword", Category = ItemCategory.Equipment, MaxStack = 1, BasePrice = 250,
+    Slot = EquipSlot.Weapon,
+    AllowedClasses = { CharacterClass.Warrior },
+    DamageComponents = { new DamageComponent(DamageCategory.Physical, 8) }
+};
+
+var flameBrand = new EquipmentItem
+{
+    Id = "flame_brand", Category = ItemCategory.Equipment, MaxStack = 1, BasePrice = 900,
+    Slot = EquipSlot.Weapon,
+    AllowedClasses = { CharacterClass.Warrior },
+    DamageComponents = { new DamageComponent(DamageCategory.Physical, 6), new DamageComponent(DamageCategory.Magical, 6, Element.Fire) }
+};
+
+var staff = new EquipmentItem
+{
+    Id = "apprentice_staff", Category = ItemCategory.Equipment, MaxStack = 1, BasePrice = 250,
+    Slot = EquipSlot.Weapon,
+    AllowedClasses = { CharacterClass.WhiteMage, CharacterClass.BlackMage },
+    DamageComponents = { new DamageComponent(DamageCategory.Magical, 7) }
+};
+
+var ironMail = new EquipmentItem
+{
+    Id = "iron_mail", Category = ItemCategory.Equipment, MaxStack = 1, BasePrice = 400,
+    Slot = EquipSlot.Armor,
+    AllowedClasses = { CharacterClass.Warrior, CharacterClass.Hunter },
+    Modifiers = { new StatModifier(Stat.Defense, 8) }
 };
 
 // ---------- Base de datos ----------
 var db = new ItemDatabase();
-foreach (var item in new ItemDefinition[] { potion, antidote, shard, tonic, ringFlat, ringPercent, amulet, key })
+foreach (var item in new ItemDefinition[]
+{
+    potion, antidote, ether, shard, tonic, key,
+    ringFlat, ringPercent, amulet, emberRing, pendant, excalibur, ironSword, flameBrand, staff, ironMail
+})
     db.Register(item);
 
-// ---------- Personajes jugables (stats provisionales) ----------
+// ---------- Personajes jugables ----------
 var roster = new List<Character>
 {
-    new("Guerrero",    CharacterClass.Warrior,   140, 20, 12, 10, 5),
-    new("Cazador",     CharacterClass.Hunter,    100, 25, 13,  5, 12),
-    new("Maga Blanca", CharacterClass.WhiteMage,  80, 50,  5,  4, 8),
-    new("Maga Negra",  CharacterClass.BlackMage,  85, 60, 16,  3, 7)
+    new("Guerrero",    CharacterClass.Warrior),
+    new("Cazador",     CharacterClass.Hunter),
+    new("Maga Blanca", CharacterClass.WhiteMage),
+    new("Maga Negra",  CharacterClass.BlackMage)
 };
 
 // ---------- Tiendas ----------
@@ -81,14 +157,14 @@ var shops = new List<Shop>
     new()
     {
         Name = "Vendedor del Asentamiento",
-        Stock = { "potion", "antidote", "cohesion_shard", "group_tonic" },
+        Stock = { "potion", "antidote", "ether", "cohesion_shard", "group_tonic" },
         SellMultiplier = 0.5f
     },
     new()
     {
         Name = "Herrería",
         UnlockFlag = "smith_open",
-        Stock = { "ring_vitality", "ring_vigor", "amulet_cohesion" },
+        Stock = { "ring_vitality", "ring_vigor", "amulet_cohesion", "ember_ring", "wayfarer_pendant", "iron_sword", "flame_brand", "apprentice_staff", "iron_mail" },
         SellMultiplier = 0.3f,
         SellMultiplierByCategory = { [ItemCategory.Equipment] = 0.7f }
     }
@@ -102,11 +178,15 @@ var state = new GameState
     Roster = roster,
     Shops = shops
 };
+state.Enemies.Add(new EnemyDefinition("training_dummy", 20, 20,
+    new() { [Element.Fire] = 1.5f, [Element.Ice] = 0.5f, [Element.Lightning] = 0f }));
+
 state.Inventory.Add(potion, 3);
 state.Inventory.Add(antidote, 2);
+state.Inventory.Add(ether, 2);
 state.Inventory.Add(tonic, 2);
-state.Inventory.Add(ringFlat, 1);
-state.Inventory.Add(amulet, 1);
 state.Inventory.Add(key, 1);
+foreach (var gear in new[] { ringFlat, amulet, emberRing, pendant, excalibur, ironSword, flameBrand, staff, ironMail })
+    state.Inventory.Add(gear, 1);
 
 new ConsoleMenu(state, "save.json").Run();

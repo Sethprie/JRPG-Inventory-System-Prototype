@@ -57,7 +57,7 @@ public partial class ConsoleMenu
 
         // 2) Presentación simulada
         Ui.Header("Ejecutando acción", g.Wallet.Essence);
-        Ui.Dim($"▸ BattleManager → ExecuteAbility(Instigator={actor.Name}, Item={item.Name})");
+        Ui.Dim($"▸ BattleManager → ExecuteAbility(Instigator={actor.Name}, Item={item.DisplayName})");
         Ui.Dim(item.Target == TargetType.SingleAlly
             ? $"▸ Director → BlendToTarget({targets[0].Name}, Ally)"
             : "▸ Director → sin Target único: BlendToCam(PanoramicCam)");
@@ -86,7 +86,7 @@ public partial class ConsoleMenu
         {
             if (r.Applied) Ui.Ok(r.Message); else Ui.Warn(r.Message);
         }
-        Ui.Dim($"Te quedan {g.Inventory.GetCount(item.Id)} de {item.Name}.");
+        Ui.Dim($"Te quedan {g.Inventory.GetCount(item.Id)} de {item.DisplayName}.");
         Ui.Pause();
         return true;
     }

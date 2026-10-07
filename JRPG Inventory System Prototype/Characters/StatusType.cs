@@ -1,5 +1,3 @@
+namespace JRPG_Inventory_System_Prototype;
 
-namespace JRPG_Inventory_System_Prototype
-{
-    public enum StatusType { Poison, Sleep, Silence }
-}
+public enum StatusType { Poison, Sleep, Silence, Burning }
