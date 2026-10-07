@@ -1,6 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace JRPG_Inventory_System_Prototype;
 
@@ -26,5 +23,13 @@ public class ApplyStatusEffect(StatusType status, int turns) : IItemEffect
     {
         t.AddStatus(status, turns);
         return $"{t.Name} sufre {status}.";
+    }
+}
+public class RestoreSolidityEffect(int amount) : IItemEffect
+{
+    public string Apply(Character t)
+    {
+        int restored = t.RestoreSolidity(amount);
+        return restored > 0 ? $"{t.Name} recupera {restored} de Solidez." : "No tuvo efecto.";
     }
 }

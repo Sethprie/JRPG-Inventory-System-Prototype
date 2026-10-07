@@ -1,23 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
 namespace JRPG_Inventory_System_Prototype;
 
+// La única moneda del juego es la Esencia
 public class Wallet
 {
-    public int Gold { get; private set; }
+    public int Essence { get; private set; }
 
-    public Wallet(int gold = 0) => Gold = gold;
+    public Wallet(int essence = 0) => Essence = essence;
 
-    public void Add(int amount) => Gold += amount;
+    public void Add(int amount) => Essence += amount;
 
     public bool TrySpend(int amount)
     {
-        if (amount > Gold) return false;
-        Gold -= amount;
+        if (amount > Essence) return false;
+        Essence -= amount;
         return true;
     }
 
-    public void Set(int amount) => Gold = amount;
+    public void Set(int amount) => Essence = amount;
 }
