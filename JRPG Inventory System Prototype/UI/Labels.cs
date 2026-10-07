@@ -48,6 +48,16 @@ public static class Labels
         _ => c.ToString()
     };
 
+    public static string TargetName(TargetType t) => t switch
+    {
+        TargetType.None => "sin objetivo",
+        TargetType.SingleAlly => "un aliado",
+        TargetType.AllAllies => "todo el grupo",
+        TargetType.SingleEnemy => "un enemigo",
+        TargetType.AllEnemies => "todos los enemigos",
+        _ => t.ToString()
+    };
+
     public static string Modifier(StatModifier m) => m.Type == ModifierType.Percent
         ? $"{m.Value * 100:+0.##;-0.##}% {StatName(m.Stat)}"
         : $"{m.Value:+0.##;-0.##} {StatName(m.Stat)}";

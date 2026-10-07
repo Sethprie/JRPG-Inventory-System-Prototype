@@ -19,7 +19,16 @@ var shard = new ConsumableItem
 {
     Id = "cohesion_shard", Name = "Fragmento de Cohesión", Description = "Recupera 1 de Solidez. (Ítem de prueba)",
     Category = ItemCategory.Consumable, BasePrice = 150,
+    UsableIn = UseContext.Map,
     Effects = { new RestoreSolidityEffect(1) }
+};
+
+var tonic = new ConsumableItem
+{
+    Id = "group_tonic", Name = "Tónico de Grupo", Description = "Recupera 30 PV a todo el grupo.",
+    Category = ItemCategory.Consumable, BasePrice = 120,
+    Target = TargetType.AllAllies,
+    Effects = { new HealHpEffect(30) }
 };
 
 var ringFlat = new EquipmentItem
@@ -54,7 +63,7 @@ var key = new ConsumableItem
 
 // ---------- Base de datos ----------
 var db = new ItemDatabase();
-foreach (var item in new ItemDefinition[] { potion, antidote, shard, ringFlat, ringPercent, amulet, key })
+foreach (var item in new ItemDefinition[] { potion, antidote, shard, tonic, ringFlat, ringPercent, amulet, key })
     db.Register(item);
 
 // ---------- Personajes jugables (stats provisionales) ----------
@@ -72,7 +81,7 @@ var shops = new List<Shop>
     new()
     {
         Name = "Vendedor del Asentamiento",
-        Stock = { "potion", "antidote", "cohesion_shard" },
+        Stock = { "potion", "antidote", "cohesion_shard", "group_tonic" },
         SellMultiplier = 0.5f
     },
     new()
@@ -95,6 +104,7 @@ var state = new GameState
 };
 state.Inventory.Add(potion, 3);
 state.Inventory.Add(antidote, 2);
+state.Inventory.Add(tonic, 2);
 state.Inventory.Add(ringFlat, 1);
 state.Inventory.Add(amulet, 1);
 state.Inventory.Add(key, 1);

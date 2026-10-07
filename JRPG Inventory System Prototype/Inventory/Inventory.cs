@@ -27,12 +27,25 @@ public class Inventory
 
     public IEnumerable<KeyValuePair<string, int>> GetAll() => _items;
 
-    public List<string> Use(ConsumableItem item, Character target)
+    // Valida el uso SIN gastar nada (ítem, turno). Si no hay ningún efecto posible, lo rechaza.
+    public UseCheck CanUse(ConsumableItem item, IReadOnlyCollection<Character> targets, UseContext context)
     {
-        if (!Remove(item.Id, 1))
-            return new() { $"No tienes {item.Name}." };
+        if (item.Category != ItemCategory.Consumable) return UseCheck.NotUsable;
+        if (!item.UsableIn.HasFlag(context)) return UseCheck.WrongContext;
+        if (GetCount(item.Id) < 1) return UseCheck.NotInStock;
+        bool anyEffect = targets.Any(t => item.Effects.Any(e => e.CanAffect(t)));
+        return anyEffect ? UseCheck.Ok : UseCheck.NoEffect;
+    }
 
-        return item.Effects.Select(e => e.Apply(target)).ToList();
+    // Valida, consume 1 y aplica los efectos a cada objetivo (un solo consumo aunque haya varios)
+    public UseResult Use(ConsumableItem item, IReadOnlyCollection<Character> targets, UseContext context)
+    {
+        var check = CanUse(item, targets, context);
+        if (check != UseCheck.Ok) return new(check, new());
+
+        Remove(item.Id, 1);
+        var results = targets.SelectMany(t => item.Effects.Select(e => e.Apply(t))).ToList();
+        return new(UseCheck.Ok, results);
     }
 
     public TradeResult TryDiscard(ItemDefinition item, int amount)

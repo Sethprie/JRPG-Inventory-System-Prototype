@@ -1,6 +1,6 @@
 namespace JRPG_Inventory_System_Prototype;
 
-public class ConsoleMenu(GameState g, string savePath)
+public partial class ConsoleMenu(GameState g, string savePath)
 {
     private bool _gameOver;
     private readonly List<(string Text, ConsoleColor Color)> _notices = new();
@@ -43,11 +43,12 @@ public class ConsoleMenu(GameState g, string savePath)
             Ui.MenuRow("Grupo", (1, "Estado"), (3, "Usar ítem"), (4, "Equipo"));
             Ui.MenuRow("Mochila", (2, "Inventario"), (6, "Tirar ítem"));
             Ui.MenuRow("Asentamiento", (5, "Tienda"), (7, "Restaurar Solidez"));
-            Ui.MenuRow("Partida", (8, "Guardar"), (9, "Cargar"), (10, "Debug"));
+            Ui.MenuRow("Partida", (8, "Guardar"), (9, "Cargar"));
+            Ui.MenuRow("Pruebas", (10, "Debug"), (11, "Simular combate"));
             Ui.MenuRow("", (0, "Salir"));
             Ui.WriteLine();
 
-            switch (Ui.ReadInt(0, 10))
+            switch (Ui.ReadInt(0, 11))
             {
                 case 1: ShowStatus(); break;
                 case 2: ShowInventory(); break;
@@ -59,6 +60,7 @@ public class ConsoleMenu(GameState g, string savePath)
                 case 8: Save(); break;
                 case 9: Load(); break;
                 case 10: DebugMenu(); break;
+                case 11: SimulateCombat(); break;
                 case 0: return;
             }
         }
@@ -88,7 +90,11 @@ public class ConsoleMenu(GameState g, string savePath)
         Ui.Write($"  Esencia: {g.Wallet.Essence}", ConsoleColor.Yellow);
         Ui.WriteLine($"   ·   Grupo {g.Party.Members.Count}/{Party.MaxMembers}", ConsoleColor.DarkGray);
         Ui.WriteLine();
+        PartyRows();
+    }
 
+    private void PartyRows()
+    {
         foreach (var c in g.Party.Members)
         {
             Ui.Write(c == g.Party.Leader ? "  ★ " : "    ", ConsoleColor.Yellow);
@@ -191,19 +197,59 @@ public class ConsoleMenu(GameState g, string savePath)
     private void UseItem()
     {
         Ui.Header("Usar ítem", g.Wallet.Essence);
-        var item = PickFromInventory(i => i.Category == ItemCategory.Consumable);
-        if (item is not ConsumableItem consumable) return;
+        var item = PickUsableItem(UseContext.Map);
+        if (item == null) return;
 
-        var target = PickMember("¿Sobre quién?");
-        if (target == null) return;
+        var targets = PickTargets(item);
+        if (targets == null) return;
 
-        foreach (var msg in g.Inventory.Use(consumable, target))
+        ReportUse(item, g.Inventory.Use(item, targets, UseContext.Map));
+    }
+
+    // Consumibles de la mochila usables en el contexto dado
+    private ConsumableItem? PickUsableItem(UseContext context) =>
+        PickFromInventory(
+            i => i is ConsumableItem c && c.Category == ItemCategory.Consumable && c.UsableIn.HasFlag(context),
+            i => $"{Labels.TargetName(((ConsumableItem)i).Target)} · {i.Description}") as ConsumableItem;
+
+    // Devuelve los objetivos según el tipo del ítem, o null si se cancela / no está soportado
+    private List<Character>? PickTargets(ConsumableItem item)
+    {
+        switch (item.Target)
         {
-            if (msg == "No tuvo efecto.") Warn($"{consumable.Name} sobre {target.Name}: no tuvo efecto.");
-            else Ok(msg);
+            case TargetType.SingleAlly:
+                var member = PickMember("¿Sobre quién?");
+                return member == null ? null : new List<Character> { member };
+            case TargetType.AllAllies:
+                return new List<Character>(g.Party.Members);
+            default:
+                Warn("Los ítems con objetivo enemigo o sin objetivo aún no están en el prototipo.");
+                return null;
+        }
+    }
+
+    private void ReportUse(ConsumableItem item, UseResult result)
+    {
+        if (result.Check != UseCheck.Ok)
+        {
+            Warn(UseMessage(result.Check));
+            return;
+        }
+        foreach (var r in result.Results)
+        {
+            if (r.Applied) Ok(r.Message); else Warn(r.Message);
         }
         Ui.Dim($"Te quedan {g.Inventory.GetCount(item.Id)} de {item.Name}.");
     }
+
+    private static string UseMessage(UseCheck check) => check switch
+    {
+        UseCheck.NoEffect => "No tendría ningún efecto. No se gastó el ítem.",
+        UseCheck.WrongContext => "Ese ítem no se puede usar aquí.",
+        UseCheck.NotInStock => "No te quedan de ese ítem.",
+        UseCheck.NotUsable => "Ese ítem no se puede usar.",
+        _ => "Hecho."
+    };
 
     private void DiscardItem()
     {
